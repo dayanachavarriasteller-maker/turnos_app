@@ -1,0 +1,41 @@
+=== EVIDENCIA BACKEND (generada 2026-10-14T02:52:28Z) ===
+
+--- 1) POST /api/turnos (consecutivo asignado por el servidor)
+{"id":7,"numero":7,"asunto":"Consulta de matrícula","estado":"pendiente","funcionario":null,"creado_en":"2026-10-14T02:52:31.463Z","llamado_en":null,"atendido_en":null}
+HTTP 201
+
+--- 2) GET /api/turnos?estado=pendiente
+[{"id":7,"numero":7,"asunto":"Consulta de matrícula","estado":"pendiente","funcionario":null,"creado_en":"2026-10-14T02:52:31.463Z","llamado_en":null,"atendido_en":null}]
+HTTP 200
+
+--- 3) PATCH turno 1 (ya llamado) por otro funcionario -> 409
+{"error":"El turno 1 ya fue llamado por Funcionario 1","turno":{"id":1,"numero":1,"asunto":"prueba concurrencia","estado":"llamado","funcionario":"Funcionario 1","creado_en":"2026-10-14T02:52:31.068Z","llamado_en":"2026-10-14T02:52:31.088Z","atendido_en":null}}
+HTTP 409
+
+--- 4) Atender turno 1 por quien lo llamó
+{"id":1,"numero":1,"asunto":"prueba concurrencia","estado":"atendido","funcionario":"Funcionario 1","creado_en":"2026-10-14T02:52:31.068Z","llamado_en":"2026-10-14T02:52:31.088Z","atendido_en":"2026-10-14T02:52:31.488Z"}
+HTTP 200
+
+--- 5) Validación: estado inválido -> 400
+{"error":"estado debe ser 'llamado' o 'atendido'"}
+HTTP 400
+
+--- 6) Validación: asunto de 100 caracteres -> 400
+{"error":"asunto debe ser texto de máximo 80 caracteres"}
+HTTP 400
+
+--- 7) PERSISTENCIA: se reinicia el servidor y se consulta el historial
+Servidor reiniciado. GET /api/turnos?estado=atendido:
+[{"id":1,"numero":1,"asunto":"prueba concurrencia","estado":"atendido","funcionario":"Funcionario 1","creado_en":"2026-10-14T02:52:31.068Z","llamado_en":"2026-10-14T02:52:31.088Z","atendido_en":"2026-10-14T02:52:31.488Z"}]
+HTTP 200
+
+--- 8) Prueba de concurrencia (npm run test:concurrencia)
+1) Turno creado: #1 (id 1) estado=pendiente
+2) Códigos HTTP de 10 PATCH simultáneos: 200, 409, 409, 409, 409, 409, 409, 409, 409, 409
+   Éxitos: 1 | Conflictos 409: 9
+3) Eventos WebSocket 'turno_actualizado' recibidos para ese turno: 1
+   Ganador según el evento: Funcionario 1
+4) 5 "llamar siguiente" simultáneos -> turnos asignados: 2, 3, 4, 5, 6
+   ¿Sin duplicados? SÍ
+
+RESULTADO: OK (concurrencia garantizada)
